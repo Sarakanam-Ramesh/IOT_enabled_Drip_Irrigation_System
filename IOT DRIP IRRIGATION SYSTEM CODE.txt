@@ -1,0 +1,298 @@
+
+========= DECLARATION =================
+
+#include <LiquidCrystal.h>
+#include <stdio.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include "DHTesp.h"
+#define DHTpin 23
+
+LiquidCrystal lcd(13, 12, 14, 27, 26, 25);
+HTTPClient http;
+const char *ssid = "iotserver";
+const char *password = "iotserver123";
+int httpResponseCode;
+String servername = "http://projectsfactoryserver.in/storedata.php?name=";
+String accountname = "iot960";
+String field1 = "&s1=";
+String field2 = "&s2=";
+String field3 = "&s3=";
+String field4 = "&s4=";
+String field5 = "&s5=";
+String field6 = "&s6=";
+String field7 = "&s7=";
+String field8 = "&s8=";
+String field9 = "&s9=";
+String payload="";
+
+String servername_read = "http://projectsfactoryserver.in/last.php?name=";
+String accountname_read = "iot960L";
+
+
+
+DHTesp dht;
+
+int mos1 = 22;
+int mos2 = 1;
+int mos3 = 3;
+int mos4 = 21;
+int mos5 = 19;
+int mos6 = 18;
+int pump = 5;
+int mode_sw = 17;
+
+
+float tempc=0,humc=0;
+String mos1_string="";
+String mos2_string="";
+String mos3_string="";
+String mos4_string="";
+String mos5_string="";
+String mos6_string="";
+String pump_string="";
+
+int cntlmk=0;
+int cntlmk1=0;
+unsigned char rcv,count,gchr,gchr1;
+char modes='m';
+ 
+int sti=0;
+String inputString = "";         // a string to hold incoming data
+boolean stringComplete = false;  // whether the string is complete
+
+
+
+
+============== FUNCTIONAL SETUP ==============
+
+void setup() 
+{
+  pinMode(mos1, INPUT);pinMode(mos2, INPUT);
+  pinMode(mos3, INPUT);pinMode(mos4, INPUT);
+  pinMode(mos5, INPUT);pinMode(mos6, INPUT);
+  pinMode(mode_sw, INPUT_PULLUP);
+  pinMode(pump, OUTPUT);
+
+  digitalWrite(pump, LOW);
+  
+  lcd.begin(16, 2);  
+  lcd.print("   Welcome  ");
+  delay(2500);
+
+  WiFi.begin(ssid, password);
+  while(WiFi.status() != WL_CONNECTED) 
+       {
+           delay(500);
+       }
+  delay(3000);
+
+  dht.setup(DHTpin, DHTesp::DHT11);   
+
+  lcd.clear(); 
+  lcd.print("T:");//2-3-4,0
+  lcd.setCursor(5,0);
+  lcd.print("H:");//7-8-9,0
+   
+}
+
+
+=============== LOGIC ================
+
+void loop() 
+{    
+        delay(dht.getMinimumSamplingPeriod());
+  humc = dht.getHumidity();
+  tempc = dht.getTemperature();
+  lcd.setCursor(2,0);convertl(tempc);
+  lcd.setCursor(7,0);convertl(humc);
+   
+  if(tempc > 40 || humc > 90)
+    {
+
+   
+ mos1_string="";
+ if(digitalRead(mos1) == LOW)
+   {
+     lcd.setCursor(11,0);lcd.print("W");
+     mos1_string="Wet";
+   }   
+ if(digitalRead(mos1) == HIGH)
+   {
+     lcd.setCursor(11,0);lcd.print("D");
+     mos1_string="Dry";
+   }
+
+ mos2_string="";
+ if(digitalRead(mos2) == LOW)
+   {
+     lcd.setCursor(13,0);lcd.print("W");
+     mos3_string="Wet";
+   }   
+ if(digitalRead(mos1) == HIGH)
+   {
+     lcd.setCursor(13,0);lcd.print("D");
+     mos3_string="Dry";
+   }
+
+ mos3_string="";
+ if(digitalRead(mos3) == LOW)
+   {
+     lcd.setCursor(0,1);lcd.print("W");
+     mos3_string="Wet";
+   }   
+ if(digitalRead(mos3) == HIGH)
+   {
+     lcd.setCursor(0,1);lcd.print("D");
+     mos3_string="Dry";
+   }
+
+ mos4_string="";
+ if(digitalRead(mos4) == LOW)
+   {
+     lcd.setCursor(2,1);lcd.print("W");
+     mos4_string="Wet";
+   }   
+ if(digitalRead(mos4) == HIGH)
+   {
+     lcd.setCursor(2,1);lcd.print("D");
+     mos4_string="Dry";
+   }  
+
+ mos5_string="";
+ if(digitalRead(mos5) == LOW)
+   {
+     lcd.setCursor(4,1);lcd.print("W");
+     mos5_string="Wet";
+   }   
+ if(digitalRead(mos5) == HIGH)
+   {
+     lcd.setCursor(4,1);lcd.print("D");
+     mos5_string="Dry";
+   }  
+
+ mos6_string="";
+ if(digitalRead(mos6) == LOW)
+   {
+     lcd.setCursor(6,1);lcd.print("W");
+     mos6_string="Wet";
+   }   
+ if(digitalRead(mos6) == HIGH)
+   {
+     lcd.setCursor(6,1);lcd.print("D");
+     mos6_string="Dry";
+   }  
+
+ if(digitalRead(mode_sw) == LOW)
+   {
+    lcd.setCursor(13,1);lcd.print("M");
+    modes='m';
+   }
+ if(digitalRead(mode_sw) == HIGH)
+   {
+    lcd.setCursor(13,1);lcd.print("A");
+    modes='a';
+    cntlmk1=0;
+   }
+
+ if(modes == 'a')
+   {
+    pump_string = "";
+    if(digitalRead(mos1) == HIGH || digitalRead(mos2) == HIGH || digitalRead(mos3) == HIGH || digitalRead(mos4) == HIGH || digitalRead(mos5) == HIGH || digitalRead(mos6) == HIGH)
+      {
+         digitalWrite(pump, HIGH);
+         lcd.setCursor(10,1);lcd.print("ON");
+         pump_string = "Pump-ON";
+      }
+    else
+      {
+         digitalWrite(pump, LOW);
+         lcd.setCursor(10,1);lcd.print("OF");
+         pump_string = "Pump-OFF";
+      }
+   }
+   
+ delay(1000);
+
+ if(modes == 'm')
+   {
+    cntlmk1++;
+    if(cntlmk1 >= 40)
+      {cntlmk1=0;
+        iot_read();  
+      }
+   }
+ 
+ cntlmk++;
+
+ if(cntlmk >= 120)
+   {cntlmk = 0;
+      iot_send();
+   }
+}
+
+
+============ FUNCTIONS ================
+
+void iot_send()
+{
+      lcd.setCursor(15,0);lcd.print("U");
+http.begin(servername + accountname + field1 + String(tempc) + field2 + String(humc) + field3 + mos1_string + field4 + mos2_string + field5 + mos3_string + field6 + mos4_string + field7 + mos5_string + field8 + mos6_string + field9 + pump_string);
+      httpResponseCode = http.GET();
+      if(httpResponseCode>0) 
+        {
+         payload="";
+         //Serial.print("HTTP Response code: ");
+         //Serial.println(httpResponseCode);
+         payload = http.getString();
+         //Serial.println(payload);
+        }
+      else 
+        {
+         ;
+         //Serial.print("Error code: ");
+         //Serial.println(httpResponseCode);
+        }
+      delay(3000); 
+      lcd.setCursor(15,0);lcd.print(" ");
+}         
+
+void iot_read()
+{
+      lcd.setCursor(15,1);lcd.write('R');
+      pump_string = "";
+      http.begin(servername_read + accountname_read);
+      httpResponseCode = http.GET();
+      if(httpResponseCode>0) 
+        {
+         payload="";
+   //      Serial.print("HTTP Response code: ");
+   //      Serial.println(httpResponseCode);
+         payload = http.getString();
+   //      Serial.println(payload);
+   //      lcd.clear();lcd.print(payload);
+         if(payload == "*1#")
+           {
+            digitalWrite(pump, HIGH);
+            pump_string = "Pump_ON";
+            lcd.setCursor(10,1);lcd.print("ON");
+           }
+         if(payload == "*2#")
+           {
+            digitalWrite(pump, LOW);
+            pump_string = "Pump_OFF";
+            lcd.setCursor(10,1);lcd.print("OF");
+           }
+        }
+      else 
+        {
+         ;
+         //Serial.print("Error code: ");
+         //Serial.println(httpResponseCode);
+        }
+      delay(5000); 
+      lcd.setCursor(15,1);lcd.write(' ');         
+}
+
+
+
